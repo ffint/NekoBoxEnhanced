@@ -1,0 +1,64 @@
+name: Build NekoBox Enhanced
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Enhanced source
+        uses: actions/checkout@v4
+        with:
+          repository: ffint/NekoBoxForAndroid
+          ref: enhanced-v0.1.0
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.25"
+
+      - name: Prepare Android build
+        env:
+          BUILD_PLUGIN: none
+        run: |
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+          echo "ndk.dir=${ANDROID_HOME}/ndk/25.0.8775105" >> local.properties
+          ./run init action gradle
+
+      - name: Build libcore
+        run: ./run lib core
+
+      - name: Unit tests
+        env:
+          BUILD_PLUGIN: none
+        run: ./gradlew app:testPreviewReleaseUnitTest --stacktrace
+
+      - name: Build APK
+        env:
+          BUILD_PLUGIN: none
+        run: ./gradlew app:assemblePreviewRelease --stacktrace
+
+      - name: Upload APK and reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: NekoBox-Enhanced-preview
+          if-no-files-found: error
+          path: |
+            app/build/outputs/apk/preview/release/*.apk
+            app/build/reports/tests/**
