@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - release-v0.1.0-enhanced.2
+      - release-v0.1.0-enhanced.3
 
 permissions:
   contents: write
 
 env:
   SOURCE_REPOSITORY: ffint/NekoBoxForAndroid
-  SOURCE_REF: 61e494f98fd201ff7a4577bb7d192d8afe5acac7
-  RELEASE_TAG: v0.1.0-enhanced.2
-  RELEASE_TITLE: NekoBox Enhanced v0.1.0-enhanced.2
-  APP_VERSION: 1.4.2-enhanced.2
+  SOURCE_REF: cd671b35aeeef488270bd1ce9a6ac2bdf39692b4
+  RELEASE_TAG: v0.1.0-enhanced.3
+  RELEASE_TITLE: NekoBox Enhanced v0.1.0-enhanced.3
+  APP_VERSION: 1.4.2-enhanced.3
   CORE_VERSION: 1.14.1-neko-1
   PACKAGE_NAME: moe.nb4a.enhanced
   KEYSTORE_FILE: enhanced-release.keystore
@@ -161,41 +161,41 @@ jobs:
         shell: bash
         run: |
           cat > release-notes.md <<'EOF'
-          ## NekoBox Enhanced v0.1.0-enhanced.2
+          ## NekoBox Enhanced v0.1.0-enhanced.3
 
-          **App version:** 1.4.2-enhanced.2  
+          **App version:** 1.4.2-enhanced.3  
           **Package:** moe.nb4a.enhanced  
           **Core:** 1.14.1-neko-1  
-          **Verified source:** 61e494f98fd201ff7a4577bb7d192d8afe5acac7
+          **Verified source:** cd671b35aeeef488270bd1ce9a6ac2bdf39692b4
 
-          ### Hotfix
-          - Fix Android VPN startup failure on sing-box 1.14.1 caused by removed legacy TUN address fields.
-          - New TUN configurations now emit the modern address field instead of inet4_address / inet6_address.
-          - Legacy imported TUN address, route-address, and route-exclude fields are migrated automatically.
-          - Remove the obsolete endpoint_independent_nat option during compatibility migration.
-          - versionCode increased to 10002 so this build can upgrade v0.1.0-enhanced.1 in place.
+          ### DNS hotfix
+          - Fix Android VPN startup failure: dns/https[dns-direct] detour to an empty direct outbound makes no sense.
+          - New dns-local and dns-direct configurations no longer detour through the empty direct outbound.
+          - Legacy DNS migration removes that redundant detour only when the referenced direct outbound is truly empty.
+          - Preserve detours to non-empty/custom direct outbounds such as interface-bound direct routes.
+          - versionCode increased to 10003 for in-place upgrade from enhanced.2.
 
-          ### Included Enhanced features
-          - Smart Group scoring, auto-selection, failover, node locking and manual tests.
-          - Privacy Test for proxy-path IPv4/IPv6 and DNS resolver diagnostics.
-          - Built-in and custom App Groups.
-          - Core 1.14.1-neko-1 compatibility migrations for legacy DNS, inbound fields and WireGuard.
+          ### Previous compatibility fixes included
+          - TUN uses the modern address field; legacy inet4/inet6 TUN fields are migrated automatically.
+          - Legacy DNS server format, inbound fields and WireGuard compatibility migrations remain enabled.
+          - Obsolete endpoint_independent_nat is removed during migration.
 
           ### Automated QA
-          - libcore build and compatibility tests.
+          - libcore build and compatibility regression tests.
+          - Android unit tests.
           - Preview Debug / Preview Release build.
           - Signed OSS Release verified with apksigner.
           - arm64 libgojni.so verified to contain 1.14.1-neko-1.
           - SHA-256 checksums included in SHA256SUMS.txt.
 
           ### Note
-          This hotfix specifically addresses the startup error: legacy tun address fields are deprecated in sing-box 1.10.0 and removed in sing-box 1.12.0.
+          enhanced.2 was confirmed on Android 17 to pass the prior TUN validation and then fail at dns-direct startup. This release targets that next compatibility layer.
           EOF
 
       - name: Upload signed build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: NekoBox-Enhanced-v0.1.0-enhanced.2-signed
+          name: NekoBox-Enhanced-v0.1.0-enhanced.3-signed
           if-no-files-found: error
           path: |
             dist/*
