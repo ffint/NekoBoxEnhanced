@@ -89,6 +89,13 @@ jobs:
         shell: bash
         run: ./run lib core
 
+      - name: Go compatibility tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd libcore
+          go test . -run 'TestMigrateLegacy(DNS|TunFields|TunFieldsMergesModernAddress|InboundFields|WireGuard)' -count=1
+
       - name: Unit tests
         shell: bash
         env:

@@ -54,13 +54,6 @@ jobs:
           echo "ndk.dir=${ANDROID_HOME}/ndk/25.0.8775105" >> local.properties
           ./run init action gradle
 
-      - name: Go compatibility tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd libcore
-          go test . -run 'TestMigrateLegacy(DNS|TunFields|TunFieldsMergesModernAddress|InboundFields|WireGuard)' -count=1
-
       - name: Build libcore
         shell: bash
         run: |
@@ -77,6 +70,13 @@ jobs:
           PY
             exit "$rc"
           fi
+
+      - name: Go compatibility tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd libcore
+          go test . -run 'TestMigrateLegacy(DNS|TunFields|TunFieldsMergesModernAddress|InboundFields|WireGuard)' -count=1
 
       - name: Unit tests and build Preview APKs
         shell: bash
