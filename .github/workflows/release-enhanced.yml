@@ -137,6 +137,7 @@ jobs:
             -storepass "${KEYSTORE_PASS}" \
             -alias "${ALIAS_NAME}" > keystore-certificate.txt
 
+          cp signer-certificate.txt dist/SIGNING_CERTIFICATE.txt
           sha256sum dist/*.apk | sort -k2 > dist/SHA256SUMS.txt
           printf '%s\n' "${SOURCE_REF}" > dist/SOURCE_COMMIT.txt
           printf '%s\n' "${CORE_VERSION}" > dist/CORE_VERSION.txt
