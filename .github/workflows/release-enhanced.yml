@@ -89,7 +89,15 @@ jobs:
         shell: bash
         run: ./run lib core
 
-      - name: Unit tests and signed OSS release
+      - name: Unit tests
+        shell: bash
+        env:
+          BUILD_PLUGIN: none
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon app:testPreviewReleaseUnitTest --stacktrace
+
+      - name: Build signed OSS release
         shell: bash
         env:
           BUILD_PLUGIN: none
@@ -99,7 +107,7 @@ jobs:
           ALIAS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon app:testPreviewReleaseUnitTest app:assembleOssRelease --stacktrace
+          ./gradlew --no-daemon app:assembleOssRelease --stacktrace
 
       - name: Verify signed APKs
         shell: bash
