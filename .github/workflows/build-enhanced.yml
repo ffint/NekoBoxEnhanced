@@ -48,6 +48,8 @@ jobs:
         env:
           BUILD_PLUGIN: none
         run: |
+          find buildScript libcore -type f -name '*.sh' -exec chmod +x {} +
+          chmod +x run gradlew
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           echo "ndk.dir=${ANDROID_HOME}/ndk/25.0.8775105" >> local.properties
           ./run init action gradle
