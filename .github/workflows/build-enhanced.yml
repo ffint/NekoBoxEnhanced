@@ -1,6 +1,9 @@
 name: Build NekoBox Enhanced
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -8,7 +11,7 @@ permissions:
 
 env:
   SOURCE_REPOSITORY: ffint/NekoBoxForAndroid
-  SOURCE_REF: enhanced-v0.1.0
+  SOURCE_REF: 36f65e1a944df6910d163744bacf01b61b67ff57
 
 jobs:
   build:
