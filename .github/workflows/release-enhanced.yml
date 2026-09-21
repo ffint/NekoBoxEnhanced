@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - release-v0.1.0-enhanced.1
+      - release-v0.1.0-enhanced.2
 
 permissions:
   contents: write
 
 env:
   SOURCE_REPOSITORY: ffint/NekoBoxForAndroid
-  SOURCE_REF: ed4f0e2d8157b67656dbc4aaf51e5d2e415488d1
-  RELEASE_TAG: v0.1.0-enhanced.1
-  RELEASE_TITLE: NekoBox Enhanced v0.1.0-enhanced.1
-  APP_VERSION: 1.4.2-enhanced.1
+  SOURCE_REF: 802d9802d110ead9a63fdb2e78fcbe98170e43f7
+  RELEASE_TAG: v0.1.0-enhanced.2
+  RELEASE_TITLE: NekoBox Enhanced v0.1.0-enhanced.2
+  APP_VERSION: 1.4.2-enhanced.2
   CORE_VERSION: 1.14.1-neko-1
   PACKAGE_NAME: moe.nb4a.enhanced
   KEYSTORE_FILE: enhanced-release.keystore
@@ -153,37 +153,42 @@ jobs:
       - name: Prepare release notes
         shell: bash
         run: |
-          cat > release-notes.md <<EOF
-          ## NekoBox Enhanced v0.1.0-enhanced.1
+          cat > release-notes.md <<'EOF'
+          ## NekoBox Enhanced v0.1.0-enhanced.2
 
-          **App version:** `${APP_VERSION}`  
-          **Package:** `${PACKAGE_NAME}`  
-          **Core:** `${CORE_VERSION}`  
-          **Verified source:** `${SOURCE_REF}`
+          **App version:** 1.4.2-enhanced.2  
+          **Package:** moe.nb4a.enhanced  
+          **Core:** 1.14.1-neko-1  
+          **Verified source:** 802d9802d110ead9a63fdb2e78fcbe98170e43f7
 
-          ### Highlights
-          - sing-box upgraded to `${CORE_VERSION}` with legacy configuration compatibility.
-          - Smart Group: RTT, TTFB, throughput, success/stability scoring, auto-selection, failover, node locking and manual quick/full tests.
-          - Privacy Test: proxy-path IPv4/IPv6, Cloudflare colo and sing-box DNS resolver diagnostics.
-          - App Groups: built-in Google/Meta/Telegram/browser/overseas-social groups plus persistent custom groups.
-          - Strict Privacy and coexistable package `${PACKAGE_NAME}`.
+          ### Hotfix
+          - Fix Android VPN startup failure on sing-box 1.14.1 caused by removed legacy TUN address fields.
+          - New TUN configurations now emit the modern address field instead of inet4_address / inet6_address.
+          - Legacy imported TUN address, route-address, and route-exclude fields are migrated automatically.
+          - Remove the obsolete endpoint_independent_nat option during compatibility migration.
+          - versionCode increased to 10002 so this build can upgrade v0.1.0-enhanced.1 in place.
+
+          ### Included Enhanced features
+          - Smart Group scoring, auto-selection, failover, node locking and manual tests.
+          - Privacy Test for proxy-path IPv4/IPv6 and DNS resolver diagnostics.
+          - Built-in and custom App Groups.
+          - Core 1.14.1-neko-1 compatibility migrations for legacy DNS, inbound fields and WireGuard.
 
           ### Automated QA
-          - libcore clean build passed.
-          - Unit tests passed.
-          - Preview Debug and Preview Release builds passed on the pinned source.
-          - Signed OSS Release is verified with `apksigner`.
-          - arm64 `libgojni.so` is verified to contain `${CORE_VERSION}`.
-          - SHA-256 checksums are included in `SHA256SUMS.txt`.
+          - libcore build and compatibility tests.
+          - Preview Debug / Preview Release build.
+          - Signed OSS Release verified with apksigner.
+          - arm64 libgojni.so verified to contain 1.14.1-neko-1.
+          - SHA-256 checksums included in SHA256SUMS.txt.
 
           ### Note
-          This is the first Enhanced prerelease. Automated build/static QA has passed; device-specific Android 17, legacy WireGuard migration, DNS behavior and Smart switching should continue to be exercised in real-device use.
+          This hotfix specifically addresses the startup error: legacy tun address fields are deprecated in sing-box 1.10.0 and removed in sing-box 1.12.0.
           EOF
 
       - name: Upload signed build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: NekoBox-Enhanced-v0.1.0-enhanced.1-signed
+          name: NekoBox-Enhanced-v0.1.0-enhanced.2-signed
           if-no-files-found: error
           path: |
             dist/*
