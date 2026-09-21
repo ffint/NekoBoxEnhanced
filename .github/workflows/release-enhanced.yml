@@ -2,9 +2,6 @@ name: Release NekoBox Enhanced
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - release-v0.1.0-enhanced.1
 
 permissions:
   contents: write

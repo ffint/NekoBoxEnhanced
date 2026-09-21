@@ -1,0 +1,51 @@
+name: Fix NekoBox Enhanced Release Notes
+
+on:
+  push:
+    branches:
+      - release-v0.1.0-enhanced.1
+
+permissions:
+  contents: write
+
+jobs:
+  fix-release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/release-notes.md <<'EOF'
+          ## NekoBox Enhanced v0.1.0-enhanced.1
+
+          **App version:** `1.4.2-enhanced.1`  
+          **Package:** `moe.nb4a.enhanced`  
+          **Core:** `1.14.1-neko-1`  
+          **Verified source:** `ed4f0e2d8157b67656dbc4aaf51e5d2e415488d1`
+
+          ### Highlights
+          - sing-box upgraded to `1.14.1-neko-1` with legacy configuration compatibility.
+          - Smart Group: RTT, TTFB, throughput, success/stability scoring, auto-selection, failover, node locking and manual quick/full tests.
+          - Privacy Test: proxy-path IPv4/IPv6, Cloudflare colo and sing-box DNS resolver diagnostics.
+          - App Groups: built-in Google/Meta/Telegram/browser/overseas-social groups plus persistent custom groups.
+          - Strict Privacy and coexistable package `moe.nb4a.enhanced`.
+
+          ### Automated QA
+          - libcore clean build passed.
+          - Unit tests passed.
+          - Preview Debug and Preview Release builds passed on the pinned source.
+          - Signed OSS Release is verified with `apksigner`.
+          - arm64 `libgojni.so` is verified to contain `1.14.1-neko-1`.
+          - SHA-256 checksums are included in `SHA256SUMS.txt`.
+
+          ### Note
+          This is the first Enhanced prerelease. Automated build/static QA has passed; device-specific Android 17, legacy WireGuard migration, DNS behavior and Smart switching should continue to be exercised in real-device use.
+          EOF
+
+          gh release edit v0.1.0-enhanced.1 \
+            --repo ffint/NekoBoxEnhanced \
+            --title "NekoBox Enhanced v0.1.0-enhanced.1" \
+            --notes-file /tmp/release-notes.md \
+            --prerelease
