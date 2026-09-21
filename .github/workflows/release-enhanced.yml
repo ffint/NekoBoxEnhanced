@@ -11,7 +11,7 @@ permissions:
 
 env:
   SOURCE_REPOSITORY: ffint/NekoBoxForAndroid
-  SOURCE_REF: 802d9802d110ead9a63fdb2e78fcbe98170e43f7
+  SOURCE_REF: 61e494f98fd201ff7a4577bb7d192d8afe5acac7
   RELEASE_TAG: v0.1.0-enhanced.2
   RELEASE_TITLE: NekoBox Enhanced v0.1.0-enhanced.2
   APP_VERSION: 1.4.2-enhanced.2
@@ -159,7 +159,7 @@ jobs:
           **App version:** 1.4.2-enhanced.2  
           **Package:** moe.nb4a.enhanced  
           **Core:** 1.14.1-neko-1  
-          **Verified source:** 802d9802d110ead9a63fdb2e78fcbe98170e43f7
+          **Verified source:** 61e494f98fd201ff7a4577bb7d192d8afe5acac7
 
           ### Hotfix
           - Fix Android VPN startup failure on sing-box 1.14.1 caused by removed legacy TUN address fields.
