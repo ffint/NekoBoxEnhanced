@@ -1,9 +1,6 @@
 name: Build NekoBox Enhanced
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:

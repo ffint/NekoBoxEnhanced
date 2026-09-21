@@ -1,0 +1,205 @@
+name: Release NekoBox Enhanced
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release-v0.1.0-enhanced.1
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_REPOSITORY: ffint/NekoBoxForAndroid
+  SOURCE_REF: ed4f0e2d8157b67656dbc4aaf51e5d2e415488d1
+  RELEASE_TAG: v0.1.0-enhanced.1
+  RELEASE_TITLE: NekoBox Enhanced v0.1.0-enhanced.1
+  APP_VERSION: 1.4.2-enhanced.1
+  CORE_VERSION: 1.14.1-neko-1
+  PACKAGE_NAME: moe.nb4a.enhanced
+  KEYSTORE_FILE: enhanced-release.keystore
+  ALIAS_NAME: nekobox-enhanced
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Checkout verified Enhanced source
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_REF }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Verify pinned source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${SOURCE_REF}"
+          git log -1 --oneline
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.25.5"
+          cache-dependency-path: libcore/go.sum
+
+      - name: Validate signing secrets
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_KEYSTORE_BASE64}" || { echo "::error::Missing ANDROID_KEYSTORE_BASE64"; exit 2; }
+          test -n "${ANDROID_KEYSTORE_PASSWORD}" || { echo "::error::Missing ANDROID_KEYSTORE_PASSWORD"; exit 2; }
+
+      - name: Restore release keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${KEYSTORE_FILE}"
+          chmod 600 "${KEYSTORE_FILE}"
+          test -s "${KEYSTORE_FILE}"
+
+      - name: Prepare Android build
+        shell: bash
+        env:
+          BUILD_PLUGIN: none
+        run: |
+          set -euo pipefail
+          find buildScript libcore -type f -name '*.sh' -exec chmod +x {} +
+          chmod +x run gradlew
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+          echo "ndk.dir=${ANDROID_HOME}/ndk/25.0.8775105" >> local.properties
+          ./run init action gradle
+
+      - name: Build libcore
+        shell: bash
+        run: ./run lib core
+
+      - name: Unit tests and signed OSS release
+        shell: bash
+        env:
+          BUILD_PLUGIN: none
+          KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ALIAS_NAME: ${{ env.ALIAS_NAME }}
+          ALIAS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon app:testPreviewReleaseUnitTest app:assembleOssRelease --stacktrace
+
+      - name: Verify signed APKs
+        shell: bash
+        env:
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist qa-apk
+
+          find app/build/outputs/apk/oss/release -type f -name '*.apk' -exec cp {} dist/ \;
+          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -gt 0
+
+          ARM64_APK=$(find dist -maxdepth 1 -type f -name '*arm64-v8a*.apk' | head -1)
+          test -n "${ARM64_APK}"
+
+          unzip -tq "${ARM64_APK}"
+          BUILD_TOOLS=$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+
+          "${BUILD_TOOLS}/aapt" dump badging "${ARM64_APK}" > package.txt
+          grep -F "package: name='${PACKAGE_NAME}'" package.txt
+          grep -F "versionName='${APP_VERSION}'" package.txt
+
+          rm -rf qa-apk/*
+          unzip -q "${ARM64_APK}" 'lib/arm64-v8a/libgojni.so' -d qa-apk
+          test -s qa-apk/lib/arm64-v8a/libgojni.so
+          strings qa-apk/lib/arm64-v8a/libgojni.so | grep -F "${CORE_VERSION}" > core-version.txt
+
+          for apk in dist/*.apk; do
+            "${BUILD_TOOLS}/apksigner" verify --verbose --print-certs "${apk}"
+          done
+          "${BUILD_TOOLS}/apksigner" verify --print-certs "${ARM64_APK}" > signer-certificate.txt
+
+          keytool -list -v \
+            -keystore "${KEYSTORE_FILE}" \
+            -storepass "${KEYSTORE_PASS}" \
+            -alias "${ALIAS_NAME}" > keystore-certificate.txt
+
+          sha256sum dist/*.apk | sort -k2 > dist/SHA256SUMS.txt
+          printf '%s\n' "${SOURCE_REF}" > dist/SOURCE_COMMIT.txt
+          printf '%s\n' "${CORE_VERSION}" > dist/CORE_VERSION.txt
+
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          cat > release-notes.md <<EOF
+          ## NekoBox Enhanced v0.1.0-enhanced.1
+
+          **App version:** `${APP_VERSION}`  
+          **Package:** `${PACKAGE_NAME}`  
+          **Core:** `${CORE_VERSION}`  
+          **Verified source:** `${SOURCE_REF}`
+
+          ### Highlights
+          - sing-box upgraded to `${CORE_VERSION}` with legacy configuration compatibility.
+          - Smart Group: RTT, TTFB, throughput, success/stability scoring, auto-selection, failover, node locking and manual quick/full tests.
+          - Privacy Test: proxy-path IPv4/IPv6, Cloudflare colo and sing-box DNS resolver diagnostics.
+          - App Groups: built-in Google/Meta/Telegram/browser/overseas-social groups plus persistent custom groups.
+          - Strict Privacy and coexistable package `${PACKAGE_NAME}`.
+
+          ### Automated QA
+          - libcore clean build passed.
+          - Unit tests passed.
+          - Preview Debug and Preview Release builds passed on the pinned source.
+          - Signed OSS Release is verified with `apksigner`.
+          - arm64 `libgojni.so` is verified to contain `${CORE_VERSION}`.
+          - SHA-256 checksums are included in `SHA256SUMS.txt`.
+
+          ### Note
+          This is the first Enhanced prerelease. Automated build/static QA has passed; device-specific Android 17, legacy WireGuard migration, DNS behavior and Smart switching should continue to be exercised in real-device use.
+          EOF
+
+      - name: Upload signed build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: NekoBox-Enhanced-v0.1.0-enhanced.1-signed
+          if-no-files-found: error
+          path: |
+            dist/*
+            release-notes.md
+            signer-certificate.txt
+            keystore-certificate.txt
+
+      - name: Publish GitHub prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" dist/* --clobber --repo "${GITHUB_REPOSITORY}"
+            gh release edit "${RELEASE_TAG}" \
+              --title "${RELEASE_TITLE}" \
+              --notes-file release-notes.md \
+              --prerelease \
+              --repo "${GITHUB_REPOSITORY}"
+          else
+            gh release create "${RELEASE_TAG}" dist/* \
+              --title "${RELEASE_TITLE}" \
+              --notes-file release-notes.md \
+              --target main \
+              --prerelease \
+              --repo "${GITHUB_REPOSITORY}"
+          fi
