@@ -9,29 +9,40 @@ on:
 permissions:
   contents: read
 
+env:
+  SOURCE_REPOSITORY: ffint/NekoBoxForAndroid
+  SOURCE_REF: enhanced-v0.1.0
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
+
     steps:
       - name: Checkout Enhanced source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
-          repository: ffint/NekoBoxForAndroid
-          ref: enhanced-v0.1.0
+          repository: ${{ env.SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_REF }}
           submodules: recursive
           fetch-depth: 0
 
+      - name: Record source revision
+        run: |
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" | tee source-revision.txt
+          git log -1 --oneline
+
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: "^1.25"
+          go-version: "1.25.5"
+          cache-dependency-path: libcore/go.sum
 
       - name: Prepare Android build
         env:
@@ -42,23 +53,94 @@ jobs:
           ./run init action gradle
 
       - name: Build libcore
-        run: ./run lib core
+        shell: bash
+        run: |
+          set +e
+          ./run lib core 2>&1 | tee ci-libcore.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          text = "\n".join(Path("ci-libcore.log").read_text(errors="replace").splitlines()[-70:])
+          text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::error title=libcore build failed::{text}")
+          PY
+            exit "$rc"
+          fi
 
-      - name: Unit tests
+      - name: Unit tests and build Preview APKs
+        shell: bash
         env:
           BUILD_PLUGIN: none
-        run: ./gradlew app:testPreviewReleaseUnitTest --stacktrace
+        run: |
+          set +e
+          ./gradlew app:testPreviewReleaseUnitTest app:assemblePreviewDebug app:assemblePreviewRelease --stacktrace 2>&1 | tee ci-gradle.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          text = "\n".join(Path("ci-gradle.log").read_text(errors="replace").splitlines()[-100:])
+          text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::error title=Gradle build failed::{text}")
+          PY
+            exit "$rc"
+          fi
 
-      - name: Build APK
-        env:
-          BUILD_PLUGIN: none
-        run: ./gradlew app:assemblePreviewRelease --stacktrace
+      - name: Static APK QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_APK=$(find app/build/outputs/apk/preview/release -type f -name '*arm64-v8a*.apk' | head -1)
+          DEBUG_APK=$(find app/build/outputs/apk/preview/debug -type f -name '*arm64-v8a*.apk' | head -1)
+          test -n "$RELEASE_APK"
+          test -n "$DEBUG_APK"
 
-      - name: Upload APK and reports
-        uses: actions/upload-artifact@v4
+          unzip -tq "$RELEASE_APK"
+          unzip -tq "$DEBUG_APK"
+
+          BUILD_TOOLS=$(find "${ANDROID_HOME}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          "${BUILD_TOOLS}/aapt" dump badging "$RELEASE_APK" > qa-badging.txt
+          grep -F "package: name='moe.nb4a.enhanced'" qa-badging.txt
+
+          rm -rf qa-apk
+          mkdir -p qa-apk
+          unzip -q "$RELEASE_APK" 'lib/arm64-v8a/libgojni.so' -d qa-apk
+          test -s qa-apk/lib/arm64-v8a/libgojni.so
+          strings qa-apk/lib/arm64-v8a/libgojni.so | grep -F '1.14.1-neko-1' > qa-core-version.txt
+
+          sha256sum "$RELEASE_APK" "$DEBUG_APK" | tee qa-sha256.txt
+          unzip -l "$RELEASE_APK" | grep 'lib/arm64-v8a/' > qa-abi.txt
+
+          if "${BUILD_TOOLS}/apksigner" verify --verbose --print-certs "$RELEASE_APK" > qa-signing.txt 2>&1; then
+            SIGNING_STATE="signed"
+          else
+            SIGNING_STATE="unsigned (expected before release signing)"
+          fi
+
+          RELEASE_SHA=$(sha256sum "$RELEASE_APK" | awk '{print $1}')
+          SOURCE_SHA=$(git rev-parse HEAD)
+          printf 'source=%s\nrelease_apk=%s\nrelease_sha256=%s\npackage=moe.nb4a.enhanced\ncore=1.14.1-neko-1\nsigning=%s\n'             "$SOURCE_SHA" "$RELEASE_APK" "$RELEASE_SHA" "$SIGNING_STATE" | tee qa-summary.txt
+
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path("qa-summary.txt").read_text().strip()
+          text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::notice title=APK QA passed::{text}")
+          PY
+
+      - name: Upload APK and QA reports
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
           name: NekoBox-Enhanced-preview
-          if-no-files-found: error
+          if-no-files-found: warn
           path: |
+            app/build/outputs/apk/preview/debug/*.apk
             app/build/outputs/apk/preview/release/*.apk
             app/build/reports/tests/**
+            ci-libcore.log
+            ci-gradle.log
+            source-revision.txt
+            qa-*.txt
