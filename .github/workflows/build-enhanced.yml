@@ -11,7 +11,7 @@ permissions:
 
 env:
   SOURCE_REPOSITORY: ffint/NekoBoxForAndroid
-  SOURCE_REF: cd671b35aeeef488270bd1ce9a6ac2bdf39692b4
+  SOURCE_REF: a87235ebca0ab046a58b71201a06a980c44e9955
 
 jobs:
   build:

@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - release-v0.1.0-enhanced.3
+      - release-v0.1.0-enhanced.4
 
 permissions:
   contents: write
 
 env:
   SOURCE_REPOSITORY: ffint/NekoBoxForAndroid
-  SOURCE_REF: cd671b35aeeef488270bd1ce9a6ac2bdf39692b4
-  RELEASE_TAG: v0.1.0-enhanced.3
-  RELEASE_TITLE: NekoBox Enhanced v0.1.0-enhanced.3
-  APP_VERSION: 1.4.2-enhanced.3
+  SOURCE_REF: a87235ebca0ab046a58b71201a06a980c44e9955
+  RELEASE_TAG: v0.1.0-enhanced.4
+  RELEASE_TITLE: NekoBox Enhanced v0.1.0-enhanced.4
+  APP_VERSION: 1.4.2-enhanced.4
   CORE_VERSION: 1.14.1-neko-1
   PACKAGE_NAME: moe.nb4a.enhanced
   KEYSTORE_FILE: enhanced-release.keystore
@@ -161,41 +161,40 @@ jobs:
         shell: bash
         run: |
           cat > release-notes.md <<'EOF'
-          ## NekoBox Enhanced v0.1.0-enhanced.3
+          ## NekoBox Enhanced v0.1.0-enhanced.4
 
-          **App version:** 1.4.2-enhanced.3  
+          **App version:** 1.4.2-enhanced.4  
           **Package:** moe.nb4a.enhanced  
           **Core:** 1.14.1-neko-1  
-          **Verified source:** cd671b35aeeef488270bd1ce9a6ac2bdf39692b4
+          **Verified source:** a87235ebca0ab046a58b71201a06a980c44e9955
 
-          ### DNS hotfix
-          - Fix Android VPN startup failure: dns/https[dns-direct] detour to an empty direct outbound makes no sense.
-          - New dns-local and dns-direct configurations no longer detour through the empty direct outbound.
-          - Legacy DNS migration removes that redundant detour only when the referenced direct outbound is truly empty.
-          - Preserve detours to non-empty/custom direct outbounds such as interface-bound direct routes.
-          - versionCode increased to 10003 for in-place upgrade from enhanced.2.
+          ### Android 17 QA fixes
+          - Smart Group action in the configuration screen now changes from subscription update to Smart Test when the active group is Smart.
+          - Manual Smart Test is lifecycle-scoped and crash-safe, serialized per group, and immediately selects the measured best node when automatic selection is enabled.
+          - Manual Smart Test bypasses the normal hysteresis/minimum-switch delay, while explicit node locks and automatic-selection settings remain respected.
+          - Privacy Test now runs inside the active :bg VPN service over AIDL and probes the actual running BoxInstance instead of the UI-process libcore state.
+          - NAT/STUN output now treats missing RFC 5780 alternate response endpoints as a partial STUN-server limitation instead of a misleading full failure.
+          - versionCode increased to 10004 for in-place upgrade from enhanced.3.
 
           ### Previous compatibility fixes included
-          - TUN uses the modern address field; legacy inet4/inet6 TUN fields are migrated automatically.
-          - Legacy DNS server format, inbound fields and WireGuard compatibility migrations remain enabled.
-          - Obsolete endpoint_independent_nat is removed during migration.
+          - Modern sing-box 1.14 TUN address generation and migration.
+          - DNS direct-detour compatibility for empty direct outbounds.
+          - Legacy DNS, inbound and WireGuard migrations.
 
           ### Automated QA
-          - libcore build and compatibility regression tests.
+          - libcore build and compatibility migration tests.
+          - Smart scoring unit tests.
           - Android unit tests.
           - Preview Debug / Preview Release build.
           - Signed OSS Release verified with apksigner.
           - arm64 libgojni.so verified to contain 1.14.1-neko-1.
           - SHA-256 checksums included in SHA256SUMS.txt.
-
-          ### Note
-          enhanced.2 was confirmed on Android 17 to pass the prior TUN validation and then fail at dns-direct startup. This release targets that next compatibility layer.
           EOF
 
       - name: Upload signed build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: NekoBox-Enhanced-v0.1.0-enhanced.3-signed
+          name: NekoBox-Enhanced-v0.1.0-enhanced.4-signed
           if-no-files-found: error
           path: |
             dist/*
